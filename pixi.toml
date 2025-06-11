@@ -1,0 +1,49 @@
+[project]
+authors = ["Simeon Stoykov <simeon.stoykov@quantco.com>"]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "combined"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks.generate]
+args = ["tag"]
+cmd = "cp sbom-origin-latest.json sbom-origin-{{ tag }}.json && cp sbom-fork-latest.json sbom-fork-{{ tag }}.json && cp grype-origin-latest.json grype-origin-{{ tag }}.json && cp grype-fork-latest.json grype-fork-{{ tag }}.json && diff grype-fork-{{ tag }}.json grype-origin-{{ tag }}.json"
+depends-on = [
+    { task = "generate-fork", environment = "fork" },
+    { task = "generate-origin", environment = "origin" },
+]
+
+[feature.testenv.dependencies]
+terraform = ">=1.12.2,<2"
+pixi = ">=0.48.1,<0.49"
+python = ">=3.10.4,<3.11"
+numpy = ">=2.2.6,<3"
+jupyterlab = ">=4.4.3,<5"
+
+[feature.implicit-reqs.dependencies]
+zlib = "1.2.11.*"
+libzlib = "1.2.11.*"
+
+
+[feature.origin.tasks]
+gryperun = "grype"
+generate-origin = "syft .pixi/envs/testenv -o cyclonedx-json | jq > sbom-origin-latest.json && grype sbom-origin-latest.json > grype-origin-latest.json"
+
+[feature.origin.dependencies]
+grype = ">=0.93.0,<0.94"
+syft = ">=1.27.0,<2"
+
+
+[feature.fork.tasks]
+generate-fork = "cd syft && go build -o ../mysyft ./cmd/syft && cd .. && ./mysyft .pixi/envs/testenv -o cyclonedx-json | jq > sbom-fork-latest.json && pwd && ./.pixi/envs/origin/bin/grype sbom-fork-latest.json > grype-fork-latest.json"
+
+[feature.fork.dependencies]
+go = ">=1.24.4,<2"
+
+[environments]
+testenv = {features = ["testenv"], solve-group = "implicit-reqs"}
+implicit-reqs = {features = ["implicit-reqs"], solve-group = "implicit-reqs"}
+
+origin = {features = ["origin"]}
+fork = {features = ["fork"]}
